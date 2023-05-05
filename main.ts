@@ -9,14 +9,6 @@ type ComponentClass<Component extends AbstractComponent> = new () => Component;
 // ## Property Binding
 let currentBindingId = 0;
 
-function notNullable<T>(fn: () => T | undefined): NonNullable<T> {
-  const result = fn();
-  if (result === undefined || result === null) {
-    throw new Error("nullable");
-  }
-  return result;
-}
-
 function assertKeyOf<Component extends AbstractComponent>(
   property: string | number | symbol,
   component: Component
