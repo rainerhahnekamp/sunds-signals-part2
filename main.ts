@@ -46,8 +46,10 @@ function bootstrapApplication<Component extends AbstractComponent>(
   window.addEventListener("load", () => {
     const appComponent = new appComponentClass();
 
-    const { bindingPerId: propertyBindingPerId, html: propertyBoundHtml } =
-      setPropertyBindings(appComponent, appComponent.html);
+    const { html: propertyBoundHtml } = setPropertyBindings(
+      appComponent,
+      appComponent.html
+    );
     document.body.innerHTML = propertyBoundHtml;
   });
 }
