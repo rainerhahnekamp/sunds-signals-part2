@@ -60,13 +60,18 @@ class AppComponent extends AbstractComponent {
     super(
       `<div>
     <h1>{{title}}</h1>
-    <p>{{time}}</p>
+    <div><p>{{time}}</p><button (click)="updateTime()">Update</button></div>
   </div>`
     );
   }
 
   title = "Clock App";
   time = new Date().toLocaleTimeString();
+
+  updateTime() {
+    this.time = new Date().toLocaleTimeString();
+    console.log(this.time);
+  }
 }
 
 bootstrapApplication(AppComponent);
