@@ -45,14 +45,27 @@ function setEventBindings<Component extends AbstractComponent>(
   html: string
 ) {
   const bindingPerId = new Map<number, keyof Component>();
-  for (const [, name] of html.match(/\(click\)="[\w+\(\)]"/g) || []) {
+  for (const [binding, name] of html.matchAll(/\(click\)="(\w+)\(\)"/g) || []) {
     currentBindingId++;
     assertKeyOf(name, component);
-    html = html.replace(name, `id="ng-${currentBindingId}"`);
+    html = html.replace(binding, `id="ng-${currentBindingId}"`);
     bindingPerId.set(currentBindingId, name);
   }
 
   return { bindingPerId, html };
+}
+
+function applyEventBindings<Component extends AbstractComponent>(
+    bindingPerId: Map<number, keyof Component>,
+    component: Component
+) {
+  bindingPerId.forEach((handler, id) => {
+    const dom = document.getElementById(`ng-${id}`) as Element;
+    const handlerFn = component[handler] as unknown as () => void;
+    if (typeof handlerFn === "function") {
+      dom.addEventListener("click", () => handlerFn.apply(component));
+    }
+  });
 }
 
 function bootstrapApplication<Component extends AbstractComponent>(
@@ -65,7 +78,9 @@ function bootstrapApplication<Component extends AbstractComponent>(
       appComponent,
       appComponent.html
     );
-    document.body.innerHTML = propertyBoundHtml;
+    const {html: finalHtml, bindingPerId} = setEventBindings(appComponent, propertyBoundHtml);
+    document.body.innerHTML = finalHtml;
+    applyEventBindings(bindingPerId, appComponent)
   });
 }
 
