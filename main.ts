@@ -40,6 +40,21 @@ function setPropertyBindings<Component extends AbstractComponent>(
   return { bindingPerId: bindingForId, html };
 }
 
+function setEventBindings<Component extends AbstractComponent>(
+  component: Component,
+  html: string
+) {
+  const bindingPerId = new Map<number, keyof Component>();
+  for (const [, name] of html.match(/\(click\)="[\w+\(\)]"/g) || []) {
+    currentBindingId++;
+    assertKeyOf(name, component);
+    html = html.replace(name, `id="ng-${currentBindingId}"`);
+    bindingPerId.set(currentBindingId, name);
+  }
+
+  return { bindingPerId, html };
+}
+
 function bootstrapApplication<Component extends AbstractComponent>(
   appComponentClass: ComponentClass<Component>
 ) {
