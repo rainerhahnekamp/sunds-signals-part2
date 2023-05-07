@@ -1,10 +1,14 @@
 // Framework Code
 
 abstract class AbstractComponent {
+  selector=  "";
+  imports: ComponentClass<AbstractComponent>[] = [];
   constructor(public html: string) {}
 }
 
+// Rest des Framework Codes
 type ComponentClass<Component extends AbstractComponent> = new () => Component;
+
 
 // ## Property Binding
 let currentBindingId = 0;
@@ -86,16 +90,27 @@ function bootstrapApplication<Component extends AbstractComponent>(
 
 // Application Code
 class AppComponent extends AbstractComponent {
+  imports = [ClockComponent];
   constructor() {
     super(
       `<div>
     <h1>{{title}}</h1>
-    <div><p>{{time}}</p><button (click)="updateTime()">Update</button></div>
+    <clock></clock>
   </div>`
     );
   }
 
   title = "Clock App";
+}
+
+class ClockComponent extends AbstractComponent {
+  static selector = "clock";
+  constructor() {
+    super(
+        `<div><p>{{time}}</p><button (click)="updateTime()">Update</button></div>`
+    );
+  }
+
   time = new Date().toLocaleTimeString();
 
   updateTime() {
