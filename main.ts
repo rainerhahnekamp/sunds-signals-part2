@@ -1,14 +1,17 @@
 // Framework Code
 
 abstract class AbstractComponent {
-  selector=  "";
-  imports: ComponentClass<AbstractComponent>[] = [];
+  static selector = "";
+  static imports: ComponentClass<AbstractComponent>[] = [];
   constructor(public html: string) {}
 }
 
 // Rest des Framework Codes
-type ComponentClass<Component extends AbstractComponent> = new () => Component;
-
+type ComponentClass<Component extends AbstractComponent> = {
+  new (): Component;
+  selector: string;
+  imports: ComponentClass<AbstractComponent>[];
+};
 
 // ## Property Binding
 let currentBindingId = 0;
@@ -60,8 +63,8 @@ function setEventBindings<Component extends AbstractComponent>(
 }
 
 function applyEventBindings<Component extends AbstractComponent>(
-    bindingPerId: Map<number, keyof Component>,
-    component: Component
+  bindingPerId: Map<number, keyof Component>,
+  component: Component
 ) {
   bindingPerId.forEach((handler, id) => {
     const dom = document.getElementById(`ng-${id}`) as Element;
@@ -72,25 +75,80 @@ function applyEventBindings<Component extends AbstractComponent>(
   });
 }
 
+type ComponentTree<Component extends AbstractComponent> = {
+  component: Component;
+  children: ComponentTree<AbstractComponent>[];
+};
+
+function renderComponent<Component extends AbstractComponent>(
+  parentNode: Element,
+  componentClass: ComponentClass<Component>
+): ComponentTree<AbstractComponent> {
+  const component = new componentClass();
+  const { bindingPerId: propertyBindingPerId, html: propertyBoundHtml } =
+    setPropertyBindings(component, component.html);
+
+  const { bindingPerId: eventBindingPerId, html: finalHtml } = setEventBindings(
+    component,
+    propertyBoundHtml
+  );
+
+  parentNode.innerHTML = finalHtml;
+  applyEventBindings(eventBindingPerId, component);
+
+  return {
+    component,
+    children: renderSubComponents(componentClass, component, parentNode),
+  };
+}
+
+function renderSubComponents<Component extends AbstractComponent>(
+  ParentComponentClass: ComponentClass<Component>,
+  component: Component,
+  dom: Element
+): ComponentTree<AbstractComponent>[] {
+  const compontentTrees = [];
+  for (const SubComponent of ParentComponentClass.imports) {
+    const selector: string = SubComponent.selector;
+
+    const subComponents = dom.getElementsByTagName(selector);
+
+    if (subComponents.length) {
+      const [subComponent] = subComponents;
+      compontentTrees.push(renderComponent(subComponent, SubComponent));
+    }
+  }
+
+  return compontentTrees;
+}
+
 function bootstrapApplication<Component extends AbstractComponent>(
   appComponentClass: ComponentClass<Component>
 ) {
   window.addEventListener("load", () => {
-    const appComponent = new appComponentClass();
-
-    const { html: propertyBoundHtml } = setPropertyBindings(
-      appComponent,
-      appComponent.html
-    );
-    const {html: finalHtml, bindingPerId} = setEventBindings(appComponent, propertyBoundHtml);
-    document.body.innerHTML = finalHtml;
-    applyEventBindings(bindingPerId, appComponent)
+    renderComponent(document.body, appComponentClass);
   });
 }
 
 // Application Code
+class ClockComponent extends AbstractComponent {
+  static selector = "clock";
+  constructor() {
+    super(
+      `<div><p>{{time}}</p><button (click)="updateTime()">Update</button></div>`
+    );
+  }
+
+  time = new Date().toLocaleTimeString();
+
+  updateTime() {
+    this.time = new Date().toLocaleTimeString();
+    console.log(this.time);
+  }
+}
+
 class AppComponent extends AbstractComponent {
-  imports = [ClockComponent];
+  static imports = [ClockComponent];
   constructor() {
     super(
       `<div>
@@ -101,22 +159,6 @@ class AppComponent extends AbstractComponent {
   }
 
   title = "Clock App";
-}
-
-class ClockComponent extends AbstractComponent {
-  static selector = "clock";
-  constructor() {
-    super(
-        `<div><p>{{time}}</p><button (click)="updateTime()">Update</button></div>`
-    );
-  }
-
-  time = new Date().toLocaleTimeString();
-
-  updateTime() {
-    this.time = new Date().toLocaleTimeString();
-    console.log(this.time);
-  }
 }
 
 bootstrapApplication(AppComponent);
