@@ -42,6 +42,7 @@ function setPropertyBindings<Component extends AbstractComponent>(
       value,
     });
     const placeholderTag = `<span id="ng-${currentBindingId}">${value}</span>`;
+
     html = html.replace(binding, placeholderTag);
   }
   return { bindingPerId: bindingForId, html };
@@ -77,13 +78,22 @@ function applyEventBindings<Component extends AbstractComponent>(
 
 type ComponentTree<Component extends AbstractComponent> = {
   component: Component;
+  bindings: Map<keyof Component, { dom: HTMLElement; value: string }>;
   children: ComponentTree<AbstractComponent>[];
 };
+
+function getOrThrow<Type>(value: Type): NonNullable<Type> {
+  if (value === null || value === undefined) {
+    throw new Error("value cannot be nullable");
+  }
+
+  return value;
+}
 
 function renderComponent<Component extends AbstractComponent>(
   parentNode: Element,
   componentClass: ComponentClass<Component>
-): ComponentTree<AbstractComponent> {
+): ComponentTree<Component> {
   const component = new componentClass();
   const { bindingPerId: propertyBindingPerId, html: propertyBoundHtml } =
     setPropertyBindings(component, component.html);
@@ -96,8 +106,18 @@ function renderComponent<Component extends AbstractComponent>(
   parentNode.innerHTML = finalHtml;
   applyEventBindings(eventBindingPerId, component);
 
+  const bindings = new Map<
+    keyof Component,
+    { dom: HTMLElement; value: string }
+  >();
+  for (const [key, { id, value }] of propertyBindingPerId) {
+    const dom = getOrThrow(document.getElementById(`ng-${id}`));
+    bindings.set(key, { value, dom });
+  }
+
   return {
     component,
+    bindings,
     children: renderSubComponents(componentClass, component, parentNode),
   };
 }
@@ -122,11 +142,34 @@ function renderSubComponents<Component extends AbstractComponent>(
   return compontentTrees;
 }
 
+function detectChanges<Component extends AbstractComponent>({
+  component,
+  bindings,
+  children,
+}: ComponentTree<Component>) {
+  for (const [propName, { dom, value }] of bindings.entries()) {
+    if (value !== component[propName]) {
+      const value = String(component[propName]);
+      dom.innerText = value;
+      bindings.set(propName, { dom, value });
+    }
+  }
+
+  children.forEach(detectChanges);
+}
+
 function bootstrapApplication<Component extends AbstractComponent>(
   appComponentClass: ComponentClass<Component>
 ) {
   window.addEventListener("load", () => {
-    renderComponent(document.body, appComponentClass);
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    const componentTree = renderComponent(root, appComponentClass);
+
+    getOrThrow(document.getElementById("btn-cd")).addEventListener(
+      "click",
+      () => detectChanges(componentTree)
+    );
   });
 }
 
