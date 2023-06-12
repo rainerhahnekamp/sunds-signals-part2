@@ -266,16 +266,17 @@ function bootstrapApplication<Component extends AbstractComponent>(
 // Application Code
 class ClockComponent extends AbstractComponent {
   static selector = "clock";
+  time = signal(new Date());
+  prettyTime = computed(() => this.time().toLocaleString());
+
   constructor() {
     super(
-      `<div><p>{{time}}</p><button (click)="updateTime()">Update</button></div>`
+      `<div><p>{{prettyTime()}}</p><button (click)="updateTime()">Update</button></div>`
     );
   }
 
-  time = new Date().toLocaleTimeString();
-
   updateTime() {
-    this.time = new Date().toLocaleTimeString();
+    this.time.set(new Date());
     console.log(this.time);
   }
 }
