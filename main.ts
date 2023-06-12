@@ -1,3 +1,74 @@
+// Signale
+
+interface Consumer<T> {
+  onValueChange(value: T): void;
+}
+
+let activeConsumer: Consumer<unknown> | undefined;
+
+interface Signal<T> {
+  (): T;
+  set(value: T): void;
+}
+
+function signal<T>(initialValue: T): Signal<T> {
+  const consumers = new Set<Consumer<T>>();
+  let internalValue = initialValue;
+  return Object.assign(
+    () => {
+      if (activeConsumer) {
+        consumers.add(activeConsumer);
+      }
+      return internalValue;
+    },
+    {
+      set: (newValue: T) => {
+        internalValue = newValue;
+        for (const consumer of consumers) {
+          consumer.onValueChange(internalValue);
+        }
+      },
+    }
+  );
+}
+
+class Computed<T> implements Consumer<T> {
+  internalSignal: Signal<T>;
+  constructor(private computedFn: () => T) {
+    const prevConsumer = activeConsumer;
+    activeConsumer = this;
+    this.internalSignal = signal(this.computedFn());
+    activeConsumer = prevConsumer;
+  }
+
+  onValueChange(value: T) {
+    this.internalSignal.set(this.computedFn());
+  }
+}
+
+function computed<T>(computedFn: () => T): Signal<T> {
+  const computed = new Computed(computedFn);
+  return computed.internalSignal;
+}
+
+function effect<T>(effectFn: () => T): void {
+  const prevConsumer = activeConsumer;
+  activeConsumer = {
+    onValueChange(value: any) {
+      effectFn();
+    },
+  };
+  effectFn();
+  activeConsumer = prevConsumer;
+}
+
+const time = signal(new Date());
+const timeStr = computed(() => time().toLocaleDateString());
+effect(() => {
+  console.log(`current time is: ${timeStr()}`);
+});
+time.set(new Date(2023, 1, 1, 0, 0));
+
 // Framework Code
 
 abstract class AbstractComponent {
