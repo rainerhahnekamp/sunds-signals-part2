@@ -158,17 +158,36 @@ function detectChanges<Component extends AbstractComponent>({
   children.forEach(detectChanges);
 }
 
+let rootComponentTree: ComponentTree<any>;
+
+function patchAddEventListener() {
+  const original = EventTarget.prototype.addEventListener;
+  EventTarget.prototype.addEventListener = function (
+    ...args: Parameters<typeof original>
+  ) {
+    const callback = args[1];
+    if (typeof callback === "function") {
+      args[1] = (event: Event) => {
+        callback(event);
+        detectChanges(rootComponentTree);
+      };
+    }
+    return original.apply(this, args);
+  };
+}
+
 function bootstrapApplication<Component extends AbstractComponent>(
   appComponentClass: ComponentClass<Component>
 ) {
+  patchAddEventListener();
   window.addEventListener("load", () => {
     const root = document.createElement("div");
     document.body.appendChild(root);
-    const componentTree = renderComponent(root, appComponentClass);
+    rootComponentTree = renderComponent(root, appComponentClass);
 
     getOrThrow(document.getElementById("btn-cd")).addEventListener(
       "click",
-      () => detectChanges(componentTree)
+      () => detectChanges(rootComponentTree)
     );
   });
 }
